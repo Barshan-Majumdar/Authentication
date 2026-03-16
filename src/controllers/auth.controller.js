@@ -32,6 +32,8 @@ export async function register(req, res) {
         expiresIn: "1d"
     })
 
+    res.cookie("token", token)
+
     res.status(201).json({
         message: "User registered successfully !",
         user: {
