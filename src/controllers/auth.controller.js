@@ -19,6 +19,7 @@ export async function register(req, res) {
     }
 
     const hashedPass = crypto.createHash("sha256").update(password).digest("hex")
+    // const hashedPass = await bcrypt.hash(password, 10)  -- this can also be used here
 
     const user = userModel.create({
         username,
@@ -44,4 +45,3 @@ export async function register(req, res) {
 
 }
 
-    
