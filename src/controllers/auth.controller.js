@@ -2,7 +2,6 @@ import userModel from "../models/user.model.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import config from "../config/config.js";
-import { access } from "fs";
 
 
 
@@ -89,4 +88,31 @@ export async function getMe(req, res) {
             email: user.email
         }
     })
+}
+
+
+export async function refreshToken(req, res) {
+  
+  const refreshToken = req.cookies.refreshToken
+
+  if (!refreshToken) {
+    return res.status(401).json({
+      message: "Refresh token not found !!"
+    })
+  }
+
+  const decoded = jwt.verify(refreshToken, config.JWT_SECRET)
+
+  const accessToken = jwt.sign({
+    id: decoded.id
+  }, config.JWT_SECRET, {
+    expiresIn: "15m"
+  })
+
+  res.status(200).json({
+    message: "Access token generated succesfully !!",
+    accessToken
+  })
+
+
 }
