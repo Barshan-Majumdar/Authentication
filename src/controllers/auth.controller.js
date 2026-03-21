@@ -157,8 +157,8 @@ export async function refreshToken(req, res) {
     .createHash("sha256")
     .update(newRefreshToken)
     .digest("hex");
-  session.refreshTokenHash = newRefreshTokenHash
-  await session.save()
+  session.refreshTokenHash = newRefreshTokenHash;
+  await session.save();
 
   res.cookie("refreshToken", newRefreshToken, {
     httpOnly: true,
@@ -209,3 +209,28 @@ export async function logout(req, res) {
   });
 }
 
+export async function logoutAll(req, res) {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(400).json({
+      message: "Refresh token not found !!"
+    })
+  }
+
+  const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
+
+  await sessionModel.updateMany(
+    {
+      user: decoded.id,
+      revoked: false,
+    },
+    {
+      revoked: true,
+    },
+  );
+  res.clearCookie("refreshToken");
+  res.status(200).json({
+    message: "Logged out from all devices !!"
+  })
+}
