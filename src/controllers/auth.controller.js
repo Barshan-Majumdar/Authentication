@@ -76,14 +76,14 @@ export async function register(req, res) {
   const otp = generateOtp();
   const html = getOtpHtml(otp);
 
-  const otpHash = crypto.createHash("sha256").update(otp).digest("hex")
+  const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
   await otpModel.create({
     email,
     user: user._id,
-    otpHash
-  })
+    otpHash,
+  });
 
-  await sendEmail(email, "OTP Verification", `Your OTP is ${otp}`, html)
+  await sendEmail(email, "OTP Verification", `Your OTP is ${otp}`, html);
 
   res.status(201).json({
     message: "User registered successfully !",
@@ -108,8 +108,8 @@ export async function login(req, res) {
 
   if (!user.verified) {
     return res.status(401).json({
-      message: "Email not verified ! Please verify it first "
-    })
+      message: "Email not verified ! Please verify it first ",
+    });
   }
 
   const passwordHash = crypto
@@ -329,4 +329,39 @@ export async function logoutAll(req, res) {
   res.status(200).json({
     message: "Logged out from all devices !!",
   });
+}
+
+export async function verifyEmail(req, res) {
+  const { otp, email } = req.body;
+  if (!otp) {
+    return res.status(400).json({
+      messge: "Please provide an OTP !",
+    });
+  }
+
+  const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+  const otpDoc = await otpModel.findOne({
+    email,
+    otpHash,
+  });
+
+  if (!otpDoc) {
+    return res.status(400).json({
+      message: "Invalid OTP !",
+    });
+  }
+
+  const user = await userModel.findByIdAndUpdate(otpDoc.user, {
+    verified: true
+  })
+
+  await otpModel.deleteMany({
+    user: otpDoc.user
+  })
+
+  res.status(200).json({
+    message: "Email verifies successfully !",
+    user: user
+  })
 }
