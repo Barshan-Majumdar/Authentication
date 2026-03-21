@@ -169,6 +169,7 @@ export async function login(req, res) {
     user: {
       id: user._id,
       email: user.email,
+      verified: user.verified,
     },
     accessToken: accessToken,
   });
@@ -335,7 +336,7 @@ export async function verifyEmail(req, res) {
   const { otp, email } = req.body;
   if (!otp) {
     return res.status(400).json({
-      messge: "Please provide an OTP !",
+      message: "Please provide an OTP !",
     });
   }
 
@@ -352,16 +353,20 @@ export async function verifyEmail(req, res) {
     });
   }
 
-  const user = await userModel.findByIdAndUpdate(otpDoc.user, {
-    verified: true
-  })
+  const user = await userModel.findByIdAndUpdate(
+    otpDoc.user,
+    {
+      verified: true,
+    },
+    { new: true },
+  );
 
   await otpModel.deleteMany({
-    user: otpDoc.user
-  })
+    user: otpDoc.user,
+  });
 
   res.status(200).json({
-    message: "Email verifies successfully !",
-    user: user
-  })
+    message: "Email verified successfully !",
+    user: user,
+  });
 }
