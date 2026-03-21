@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import userModel from "../models/user.model.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
@@ -17,10 +18,7 @@ export async function register(req, res) {
     });
   }
 
-  const hashedPass = crypto
-    .createHash("sha256")
-    .update(password)
-    .digest("hex");
+  const hashedPass = crypto.createHash("sha256").update(password).digest("hex");
 
   // const hashedPass = await bcrypt.hash(password, 10)  -- this can also be used here
 
@@ -119,6 +117,22 @@ export async function refreshToken(req, res) {
 
   const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
 
+  const refreshTokenHash = crypto
+    .createHash("sha256")
+    .update(refreshToken)
+    .digest("hex");
+
+  const session = await sessionModel.findOne({
+    refreshTokenHash,
+    revoke: false,
+  });
+
+  if (!session) {
+    return res.status(400).json({
+      message: "Invalid refresh token !",
+    });
+  }
+
   const accessToken = jwt.sign(
     {
       id: decoded.id,
@@ -139,6 +153,13 @@ export async function refreshToken(req, res) {
     },
   );
 
+  const newRefreshTokenHash = crypto
+    .createHash("sha256")
+    .update(newRefreshToken)
+    .digest("hex");
+  session.refreshTokenHash = newRefreshTokenHash
+  await session.save()
+
   res.cookie("refreshToken", newRefreshToken, {
     httpOnly: true,
     secure: true,
@@ -151,3 +172,40 @@ export async function refreshToken(req, res) {
     accessToken,
   });
 }
+
+export async function logout(req, res) {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(400).json({
+      message: "Refresh Token not Found !!",
+    });
+  }
+
+  const refreshTokenHash = crypto
+    .createHash("sha256")
+    .update(refreshToken)
+    .digest("hex");
+
+  const session = await sessionModel.findOne({
+    refreshTokenHash,
+    revoked: false,
+  });
+
+  if (!session) {
+    return res.status(400).json({
+      message: "Refresh token not valid !",
+    });
+  }
+
+  session.revoked = true;
+  console.log("Is Mongoose Document:", session instanceof mongoose.Document);
+  await session.save();
+
+  res.clearCookie("refreshToken");
+
+  res.status(200).json({
+    message: "User logged out successfully !",
+  });
+}
+
