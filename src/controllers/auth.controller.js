@@ -78,6 +78,79 @@ export async function register(req, res) {
   });
 }
 
+export async function login(req, res) {
+  const { email, password } = req.body;
+
+  const user = await userModel.findOne({ email });
+
+  if (!user) {
+    return res.status(401).json({
+      message: "Email not found with this user !",
+    });
+  }
+
+  const passwordHash = crypto
+    .createHash("sha256")
+    .update(password)
+    .digest("hex");
+
+  const isPasswordValid = passwordHash === user.password;
+
+  if (!isPasswordValid) {
+    return res.status(401).json({
+      message: "Password not valid !",
+    });
+  }
+
+  const refreshToken = jwt.sign(
+    {
+      id: user._id,
+    },
+    config.JWT_SECRET,
+    {
+      expiresIn: "7d",
+    },
+  );
+
+  const refreshTokenHash = crypto
+    .createHash("sha256")
+    .update(refreshToken)
+    .digest("hex");
+
+  const session = await sessionModel.create({
+    user: user._id,
+    refreshTokenHash: refreshTokenHash,
+    ip: req.ip,
+    userAgent: req.headers["user-agent"],
+  });
+
+  const accessToken = jwt.sign(
+    {
+      id: user._id,
+    },
+    config.JWT_SECRET,
+    {
+      expiresIn: "15m",
+    },
+  );
+
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  res.status(200).json({
+    message: "Logged in successfully !",
+    user: {
+      id: user._id,
+      email: user.email
+    },
+    accessToken: accessToken
+  })
+}
+
 export async function getMe(req, res) {
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -214,8 +287,8 @@ export async function logoutAll(req, res) {
 
   if (!refreshToken) {
     return res.status(400).json({
-      message: "Refresh token not found !!"
-    })
+      message: "Refresh token not found !!",
+    });
   }
 
   const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
@@ -231,6 +304,6 @@ export async function logoutAll(req, res) {
   );
   res.clearCookie("refreshToken");
   res.status(200).json({
-    message: "Logged out from all devices !!"
-  })
+    message: "Logged out from all devices !!",
+  });
 }
