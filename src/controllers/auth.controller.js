@@ -4,6 +4,9 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import config from "../config/config.js";
 import sessionModel from "../models/session.model.js";
+import { sendEmail } from "../services/email.service.js";
+import { generateOtp, getOtpHtml } from "../utils/utils.js";
+import otpModel from "../models/otp.model.js";
 
 export async function register(req, res) {
   const { username, email, password } = req.body;
@@ -28,6 +31,7 @@ export async function register(req, res) {
     password: hashedPass,
   });
 
+  /** 
   const refreshToken = jwt.sign(
     {
       id: user._id,
@@ -67,13 +71,26 @@ export async function register(req, res) {
     sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
+*/
+
+  const otp = generateOtp();
+  const html = getOtpHtml(otp);
+
+  const otpHash = crypto.createHash("sha256").update(otp).digest("hex")
+  await otpModel.create({
+    email,
+    user: user._id,
+    otpHash
+  })
+
+  await sendEmail(email, "OTP Verification", `Your OTP is ${otp}`, html)
 
   res.status(201).json({
     message: "User registered successfully !",
     user: {
       username: user.username,
       email: user.email,
-      accessToken: accessToken,
+      verified: user.verified,
     },
   });
 }
@@ -87,6 +104,12 @@ export async function login(req, res) {
     return res.status(401).json({
       message: "Email not found with this user !",
     });
+  }
+
+  if (!user.verified) {
+    return res.status(401).json({
+      message: "Email not verified ! Please verify it first "
+    })
   }
 
   const passwordHash = crypto
@@ -145,10 +168,10 @@ export async function login(req, res) {
     message: "Logged in successfully !",
     user: {
       id: user._id,
-      email: user.email
+      email: user.email,
     },
-    accessToken: accessToken
-  })
+    accessToken: accessToken,
+  });
 }
 
 export async function getMe(req, res) {

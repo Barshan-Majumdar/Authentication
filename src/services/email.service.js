@@ -20,7 +20,7 @@ transporter.verify((error, success) => {
   }
 });
 
-const sendEmail = async (to, subject, text, html) => {
+export const sendEmail = async (to, subject, text, html) => {
   try {
     const info = await transporter.sendMail({
       from: `"Barshan" <${config.GOOGLE_USER}>`, // sender address
@@ -36,6 +36,3 @@ const sendEmail = async (to, subject, text, html) => {
     console.error("Error sending email:", error);
   }
 };
-
-
-export default transporter;
